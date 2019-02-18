@@ -86,20 +86,24 @@ stmt PickBeeper _ w r = let p = getPos r
 stmt PutBeeper _ world robot = 
                         if  not (isEmpty robot)
                             then OK (incBeeper (getPos robot) world) (decBag robot)
-                            else Error ("Beeper bag empty")
+                            else Error ("No beeper to put.")
 
 stmt (Turn dir) _ world robot = OK world (updateFacing (cardTurn dir) robot)
 
 stmt Move _ world robot = let futurePos = (neighbor (getFacing robot))
                         in if isClear (futurePos (getPos robot)) world
                             then OK world (updatePos futurePos robot)
-                            else Error ("Something is in the way")
+                            else Error ("Blocked at: " ++ show (futurePos (getPos robot)))
 
 stmt (Block (statmt:statmts)) defs world robot = let result = stmt statmt defs world robot
                                             in onOK (stmt (Block statmts) defs) result
 
 stmt (Block []) _ world robot = OK world robot      
--- stmt (Turn dir) _ _ (pos,card,beepers) = Done (pos, (cardTurn dir card), beepers)
+
+stmt (If tst statmt statmt2) defs world robot = if (test tst world robot)
+                                            then stmt statmt defs world robot
+                                            else stmt statmt2 defs world robot
+
 
 stmt _ _ _ _ = undefined
     
