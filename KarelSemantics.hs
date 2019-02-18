@@ -14,7 +14,7 @@ rob1 :: Robot
 rob1 = (pos1,South,0)
 
 rob2 :: Robot
-rob2 = (pos1,South,1)
+rob2 = (pos1,North,1)
 
 
 -- type Defs = [(Macro,Stmt)]
@@ -58,23 +58,49 @@ test (Clear dir) world robot = isClear (relativePos dir robot) world
 
 -- Testing PutBeeper
 -- stmt PutBeeper def1 w1 rob2
--- OK: ((1,1),South,1)
+-- OK: ((1,1),South,0)
 
 -- stmt PutBeeper def1 w1 rob1
 -- Error: Beeper bag empty
 
+-- Testing Turn Dir
+-- stmt (Turn Left) def1 w1 rob1
+-- Done: ((1,1),East,0)
+
+-- Testing Move
+-- stmt Move def1 w1 rob1
+-- Done: ((1,0),South,0)
+
+-- stmt Move def1 w1 rob2
+-- Done: ((1,2),North,1)
+
 -- | Valuation function for Stmt.
 stmt :: Stmt -> Defs -> World -> Robot -> Result
 stmt Shutdown   _ _ r = Done r
+
 stmt PickBeeper _ w r = let p = getPos r
                         in if hasBeeper p w
                               then OK (decBeeper p w) (incBag r)
                               else Error ("No beeper to pick at: " ++ show p)
+
 stmt PutBeeper _ world robot = 
                         if  not (isEmpty robot)
                             then OK (incBeeper (getPos robot) world) (decBag robot)
                             else Error ("Beeper bag empty")
--- stmt (Turn dir) _ world robot = cardTurn dir 
+
+stmt (Turn dir) _ world robot = OK world (updateFacing (cardTurn dir) robot)
+
+stmt Move _ world robot = let futurePos = (neighbor (getFacing robot))
+                        in if isClear (futurePos (getPos robot)) world
+                            then OK world (updatePos futurePos robot)
+                            else Error ("Something is in the way")
+
+stmt (Block (statmt:statmts)) defs world robot = let result = stmt statmt defs world robot
+                                            in onOK (stmt (Block statmts) defs) result
+
+stmt (Block []) _ world robot = OK world robot      
+-- stmt (Turn dir) _ _ (pos,card,beepers) = Done (pos, (cardTurn dir card), beepers)
+
 stmt _ _ _ _ = undefined
     
 -- | Run a Karel program.
