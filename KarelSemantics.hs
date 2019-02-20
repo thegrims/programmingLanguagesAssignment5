@@ -104,9 +104,28 @@ stmt (If tst statmt statmt2) defs world robot = if (test tst world robot)
                                             then stmt statmt defs world robot
                                             else stmt statmt2 defs world robot
 
+stmt (Call macro) (def:defs) world robot = if (getDefMacro def) == macro
+                                            then stmt (getDefStmt def) defs world robot
+                                            else stmt (Call macro) defs world robot
 
-stmt _ _ _ _ = undefined
-    
+stmt (Call macro) [] world robot = Error ("Undefined macro: " ++ macro)
+
+stmt (Iterate 0 statmt) defs world robot = OK world robot
+
+stmt (Iterate count statmt) defs world robot = let result = stmt statmt defs world robot
+                                            in onOK (stmt (Iterate (count-1) statmt) defs) result
+
+stmt (While tst statmt) defs world robot = let result = stmt statmt defs world robot
+                                        in if (test tst world robot)
+                                        then onOK (stmt (While tst statmt) defs) result
+                                        else OK world robot 
+
+getDefMacro :: (Macro,Stmt) -> Macro
+getDefMacro (macro,_) = macro
+
+getDefStmt :: (Macro,Stmt) -> Stmt
+getDefStmt (_,statmt) = statmt
+
 -- | Run a Karel program.
 prog :: Prog -> World -> Robot -> Result
 prog (m,s) w r = stmt s m w r
